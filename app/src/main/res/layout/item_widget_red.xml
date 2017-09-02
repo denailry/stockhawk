@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cnt_widget_red"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:paddingTop="7dp"
@@ -9,13 +10,13 @@
     android:paddingEnd="10dp"
     android:background="#000000">
     <TextView
-        android:id="@+id/tv_adStocklist_title"
+        android:id="@+id/tv_widget_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerVertical="true"
         android:textColor="#ffffff"/>
     <TextView
-        android:id="@+id/tv_adStocklist_diff"
+        android:id="@+id/tv_widget_diff"
         android:layout_width="70dp"
         android:layout_height="27dp"
         android:layout_marginTop="3dp"
@@ -26,12 +27,13 @@
         android:paddingRight="10dp"
         android:gravity="center"
         android:textColor="#000000"
-        android:textStyle="bold"/>
+        android:textStyle="bold"
+        android:background="#ff0000"/>
     <TextView
-        android:id="@+id/tv_adStocklist_value"
+        android:id="@+id/tv_widget_value"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_toStartOf="@id/tv_adStocklist_diff"
+        android:layout_toStartOf="@id/tv_widget_diff"
         android:layout_centerVertical="true"
         android:textColor="#ffffff" />
 </RelativeLayout>

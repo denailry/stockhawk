@@ -6,6 +6,7 @@ import com.raizlabs.android.dbflow.annotation.Column;
 import com.raizlabs.android.dbflow.annotation.PrimaryKey;
 import com.raizlabs.android.dbflow.annotation.Table;
 import com.raizlabs.android.dbflow.data.Blob;
+import com.raizlabs.android.dbflow.sql.language.Select;
 import com.raizlabs.android.dbflow.structure.BaseModel;
 
 import java.io.ByteArrayInputStream;
@@ -97,6 +98,16 @@ public class DataStock extends BaseModel {
 
     public void setLastDate(float lastDate) {
         this.lastDate = lastDate;
+    }
+
+    public static void deleteData(String dataTitle) {
+        DataStock data = new Select()
+                .from(DataStock.class)
+                .where(DataStock_Table.title.eq(dataTitle))
+                .querySingle();
+        if(data != null) {
+            data.delete();
+        }
     }
 }
 

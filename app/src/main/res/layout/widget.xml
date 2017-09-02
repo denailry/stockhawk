@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <ListView
+        android:id="@+id/list_widget"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#000000">
+    </ListView>
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="50dp">
+        <ProgressBar
+            android:id="@+id/bar_widget"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#0055ee"/>
+        <Button
+            android:id="@+id/btn_widget"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="@string/btn_widget_update"
+            android:textColor="#ffffff"
+            android:textStyle="bold"
+            android:background="#0055ee" />
+    </RelativeLayout>
+</LinearLayout>

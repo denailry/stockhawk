@@ -2,8 +2,13 @@ package com.project.denail.stockhawk;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
+import android.app.PendingIntent;
+import android.appwidget.AppWidgetManager;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.GestureDetector;
@@ -11,18 +16,18 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.project.denail.stockhawk.data.DataStock;
+import com.project.denail.stockhawk.data.DataStockMinim;
+import com.project.denail.stockhawk.data.Database;
 import com.project.denail.stockhawk.listener.SingleListener;
+import com.project.denail.stockhawk.widget.WidgetProvider;
 import com.raizlabs.android.dbflow.sql.language.Select;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -34,7 +39,7 @@ import butterknife.ButterKnife;
 public class AdapterStockList extends RecyclerView.Adapter<AdapterStockList.ViewHolder> {
 
     private ViewHolder currentFocus;
-    private List<DataStock> itemList;
+    private List<DataStockMinim> itemList;
     private SingleListener listener;
     private boolean isHighlightEnabled;
     private String dataTitle;
@@ -69,25 +74,12 @@ public class AdapterStockList extends RecyclerView.Adapter<AdapterStockList.View
 
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
-        DataStock item = itemList.get(position);
-        ArrayList<Float> values = item.getValues(); Collections.reverse(values);
-        int lastIndex = values.size()-1;
-        float value = values.get(lastIndex);
-        float diff = 0;
-        String strDiff;
+        DataStockMinim item = itemList.get(position);
 
-        if(lastIndex > 0) {
-            diff = values.get(lastIndex) - values.get(lastIndex-1);
-        }
-        if(diff > 0) {
-            strDiff = String.valueOf("+" + String.format(new Locale("en"), "%.2f", diff));
-        } else {
-            strDiff = String.valueOf(String.format(new Locale("en"), "%.2f", diff));
-        }
-        if(diff >= 0) {
-            holder.tvDiff.setBackgroundColor(Color.parseColor("#00ff00"));
-        } else {
+        if(item.isDown()) {
             holder.tvDiff.setBackgroundColor(Color.parseColor("#ff0000"));
+        } else {
+            holder.tvDiff.setBackgroundColor(Color.parseColor("#00ff00"));
         }
         if(item.getTitle().equals(dataTitle) && isHighlightEnabled) {
             changeColor(currentFocus, "#000000");
@@ -96,10 +88,9 @@ public class AdapterStockList extends RecyclerView.Adapter<AdapterStockList.View
         }
 
         holder.tvTitle.setText(item.getTitle());
-        holder.tvValue.setText(String.format(new Locale("en"), "%.2f", value));
-        holder.tvDiff.setText(strDiff);
+        holder.tvValue.setText(item.getValue());
+        holder.tvDiff.setText(item.getDiff());
         holder.itemView.setOnTouchListener(new TouchListener(holder, item));
-
     }
 
     private void changeColor(ViewHolder holder, String backgroundColor) {
@@ -138,7 +129,7 @@ public class AdapterStockList extends RecyclerView.Adapter<AdapterStockList.View
         }
     }
 
-    public boolean addItem(DataStock item) {
+    public boolean addItem(DataStockMinim item) {
         int index = searchItem(item.getTitle());
         if(index != -1) {
             itemList.set(index, item);
@@ -146,46 +137,50 @@ public class AdapterStockList extends RecyclerView.Adapter<AdapterStockList.View
             return false;
         }
         itemList.add(0, item);
-        notifyDataSetChanged();
+        notifyDataChange();
         return true;
     }
 
-    public void refresh(DataStock item) {
+    public void refresh(DataStockMinim item) {
         int index = itemList.indexOf(item);
         if(index != -1) {
             itemList.set(index, item);
         }
-        notifyDataSetChanged();
+        notifyDataChange();
     }
 
     public void refresh() {
         itemList = new Select()
-                .from(DataStock.class)
+                .from(DataStockMinim.class)
                 .queryList();
-        Collections.sort(itemList, new ThisComparator());
-        notifyDataSetChanged();
-        Log.d("TEST-SIZE", String.valueOf(itemList.size()));
+        Collections.reverse(itemList);
+        notifyDataChange();
     }
 
-    private class ThisComparator implements Comparator<DataStock> {
-        @Override
-        public int compare(DataStock dataStock, DataStock t1) {
-            if(dataStock.getId() == t1.getId()) {
-                return 0;
-            } else if(dataStock.getId() > t1.getId()) {
-                return -1;
-            } else {
-                return 1;
-            }
+    private void notifyDataChange() {
+        notifyDataSetChanged();
+
+        try {
+            AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
+            int appWidgetIds[] = appWidgetManager
+                    .getAppWidgetIds(new ComponentName(context, WidgetProvider.class));
+            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.list_widget);
+        } catch (NullPointerException e) {
+            Log.e(getClass().getSimpleName(), e.toString());
         }
+    }
+
+    public void setDataTitle(String dataTitle) {
+        this.dataTitle = dataTitle;
+        notifyDataSetChanged();
     }
 
     private class TouchListener implements View.OnTouchListener {
 
         private ViewHolder holder;
-        private DataStock item;
+        private DataStockMinim item;
 
-        public TouchListener(ViewHolder holder, DataStock item) {
+        public TouchListener(ViewHolder holder, DataStockMinim item) {
             this.holder = holder;
             this.item = item;
         }
@@ -194,7 +189,7 @@ public class AdapterStockList extends RecyclerView.Adapter<AdapterStockList.View
             @Override
             public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
                 final float scaleY = holder.itemView.getScaleY();
-                item.delete();
+                Database.deleteData(item.getTitle());
                 holder.itemView.animate()
                         .alpha(0f)
                         .scaleY(0f)
@@ -207,10 +202,10 @@ public class AdapterStockList extends RecyclerView.Adapter<AdapterStockList.View
                                     changeColor(currentFocus, "#000000");
                                     currentFocus = null;
                                     dataTitle = null;
-
                                 }
                                 holder.itemView.setScaleY(scaleY);
                                 holder.itemView.setAlpha(1f);
+
                                 super.onAnimationEnd(animation);
                             }
                         });

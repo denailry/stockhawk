@@ -52,6 +52,7 @@ public class FragmentStockChart extends Fragment {
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_stockchart, container, false);
         ButterKnife.bind(this, view);
+
         return view;
     }
 

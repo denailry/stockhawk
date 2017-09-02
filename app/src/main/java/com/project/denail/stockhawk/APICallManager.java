@@ -1,15 +1,16 @@
 package com.project.denail.stockhawk;
 
-import android.os.AsyncTask;
 import android.util.Log;
 
 import com.project.denail.stockhawk.data.DataStock;
+import com.project.denail.stockhawk.data.DataStock_Table;
+import com.project.denail.stockhawk.data.DataUpdate;
 import com.project.denail.stockhawk.retrofit.ApiHelper;
 import com.project.denail.stockhawk.retrofit.ApiService;
 import com.project.denail.stockhawk.stock.DatasetData;
 import com.project.denail.stockhawk.stock.StockModel;
+import com.raizlabs.android.dbflow.sql.language.Select;
 
-import java.sql.Time;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,8 +40,10 @@ public class APICallManager implements Runnable {
     private String currentTitle;
     private boolean isNewData;
     private boolean isRunning;
+    private boolean defautlTimeoutEnabled;
     private int currentIndex;
     private int newDataTryCount;
+    private int timeoutTryCount;
 
     private ResponseListener responseListener;
 
@@ -63,6 +66,8 @@ public class APICallManager implements Runnable {
     public APICallManager() {
         currentTitle = null;
         newDataTryCount = 0;
+        timeoutTryCount = 0;
+        defautlTimeoutEnabled = false;
         unUpdatedData = new ArrayList<>();
         newData = new ArrayList<>();
     }
@@ -99,7 +104,12 @@ public class APICallManager implements Runnable {
         this.responseListener = responseListener;
     }
 
+    public void setDefautlTimeoutEnabled(boolean defautlTimeoutEnabled) {
+        this.defautlTimeoutEnabled = defautlTimeoutEnabled;
+    }
+
     private void chooseData() {
+        Log.d("TEST-CHOOSE", "HALO");
         if(newData.size() != 0) {
             this.isNewData = true;
             this.currentIndex = newData.size() - 1;
@@ -124,9 +134,18 @@ public class APICallManager implements Runnable {
         } else {
             if(isNewData) {
                 newDataTryCount++;
-                if(newDataTryCount == TIMEOUT || !networkActive) {
+                if(newDataTryCount >= TIMEOUT || !networkActive) {
                     newData = new ArrayList<>();
                     newDataTryCount = 0;
+                    if(responseListener != null) {
+                        responseListener.onTimeout();
+                    }
+                }
+            } else if(defautlTimeoutEnabled) {
+                timeoutTryCount++;
+                if(timeoutTryCount >= TIMEOUT) {
+                    unUpdatedData = new ArrayList<>();
+                    timeoutTryCount = 0;
                     if(responseListener != null) {
                         responseListener.onTimeout();
                     }
@@ -154,7 +173,15 @@ public class APICallManager implements Runnable {
                 DataStock data = null;
                 if(response.body() != null) {
                     DatasetData stock = response.body().getDatasetData();
-                    data = new DataStock(TimeManip.genId(), dataTitle, stock.getRealValues(), 7);
+                    long id;
+                    if(isNewData) {
+                        id = TimeManip.genId();
+                    } else {
+                        id = (new Select().from(DataStock.class)
+                                .where(DataStock_Table.title.eq(dataTitle))
+                                .querySingle()).getId();
+                    }
+                    data = new DataStock(id, dataTitle, stock.getRealValues(), 7);
                 }
                 if(isNewData) {
                     responseListener.onReceiveNew(data, TimeManip.getTodayDate());
@@ -168,5 +195,48 @@ public class APICallManager implements Runnable {
                 onPostCall(false);
             }
         });
+    }
+
+    public static abstract class CollectiveListener implements ResponseListener {
+
+        private List<DataStock> updatedData;
+        private int dataSize;
+
+        public CollectiveListener(APICallManager manager, List<DataUpdate> unUpdatedData) {
+            updatedData = new ArrayList<>();
+            this.dataSize = unUpdatedData.size();
+
+            manager.setNetworkActive(true);
+            manager.setDefautlTimeoutEnabled(true);
+            for(DataUpdate data : unUpdatedData) {
+                manager.addUnUpdatedData(data.getTitle());
+            }
+        }
+
+        public abstract void onFinish(List<DataStock> updatedData, String date);
+
+        @Override
+        public void onTimeout() {
+            Log.d("TEST-API", "HALO 1");
+            onFinish(updatedData, TimeManip.getTodayDate());
+        }
+
+        @Override
+        public void onReceiveNew(DataStock dataStock, String date) {
+            Log.d("TEST-API", "HALO 2");
+        }
+
+        @Override
+        public void onReceiveUpdate(DataStock dataStock, String date) {
+            Log.d("TEST-API", "HALO 3");
+            updatedData.add(dataStock);
+            onPostListen();
+        }
+
+        private void onPostListen() {
+            if(dataSize == updatedData.size()) {
+                onFinish(updatedData, TimeManip.getTodayDate());
+            }
+        }
     }
 }

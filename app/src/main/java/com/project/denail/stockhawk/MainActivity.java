@@ -9,6 +9,8 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.project.denail.stockhawk.data.DataStock;
+import com.project.denail.stockhawk.data.DataStockMinim;
+import com.project.denail.stockhawk.data.DataStock_Table;
 import com.project.denail.stockhawk.data.DataUpdate;
 import com.project.denail.stockhawk.data.DataUpdate_Table;
 import com.project.denail.stockhawk.fragment.FragmentStockChart;
@@ -59,6 +61,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initFragment() {
+        boolean isWidgetIntentExist = (getIntent() != null) &&
+                (getIntent().getExtras() != null) &&
+                (getIntent().getExtras().containsKey(KEY_TITLE));
+        if(isWidgetIntentExist) {
+            Bundle args = getIntent().getExtras();
+            currentDataTitle = args.getString(KEY_TITLE);
+            args.remove(KEY_TITLE);
+            getIntent().replaceExtras(args);
+        }
         if(dualPane) {
             FragmentStockList fragmentList = (FragmentStockList) getSupportFragmentManager()
                     .findFragmentById(R.id.frag_main_land_list);
@@ -71,12 +82,21 @@ public class MainActivity extends AppCompatActivity {
             fragmentChart.setData(currentDataTitle);
             fragmentList.setArguments(arg);
         } else {
+            getSupportFragmentManager().popBackStack(ID_FRAG_CHART, POP_BACK_STACK_INCLUSIVE);
             FragmentStockList fragmentList = (FragmentStockList) getSupportFragmentManager()
                     .findFragmentById(R.id.frag_main_port_list);
             fragmentList.setListener(new StockListClick(), new StockListAdd());
             Bundle arg = new Bundle();
             arg.putBoolean(KEY_HIGHLIGHT, dualPane);
             fragmentList.setArguments(arg);
+            if(isWidgetIntentExist) {
+                FragmentStockChart fragment = FragmentStockChart.newInstance(currentDataTitle);
+                getSupportFragmentManager()
+                        .beginTransaction()
+                        .add(R.id.root_main, fragment)
+                        .addToBackStack(ID_FRAG_CHART)
+                        .commit();
+            }
         }
     }
 
@@ -123,11 +143,13 @@ public class MainActivity extends AppCompatActivity {
             public void onReceiveNew(DataStock dataStock, String date) {
                 if(dataStock != null) {
                     DataUpdate dataUpdate = new DataUpdate(dataStock.getTitle(), date);
+                    DataStockMinim dataStockMinim = new DataStockMinim(dataStock);
                     dataStock.save();
                     dataUpdate.save();
+                    dataStockMinim.save();
                     getFragment();
                     if(fragmentList != null) {
-                        if(fragmentList.getAdapter().addItem(dataStock)) {
+                        if(fragmentList.getAdapter().addItem(dataStockMinim)) {
                             Toast.makeText(getApplicationContext(), "New Stock Added", Toast.LENGTH_SHORT).show();
                         } else {
                             Toast.makeText(getApplicationContext(), "Stock Already Exist", Toast.LENGTH_SHORT).show();
@@ -144,12 +166,14 @@ public class MainActivity extends AppCompatActivity {
                         .from(DataUpdate.class)
                         .where(DataUpdate_Table.title.eq(dataStock.getTitle()))
                         .querySingle();
+                DataStockMinim dataStockMinim = new DataStockMinim(dataStock);
                 dataUpdate.setLastUpdate(date);
                 dataUpdate.save();
                 dataStock.save();
+                dataStockMinim.save();
                 getFragment();
                 if(fragmentList != null) {
-                    (fragmentList.getAdapter()).refresh(dataStock);
+                    (fragmentList.getAdapter()).refresh(dataStockMinim);
                 }
                 if(currentDataTitle != null && currentDataTitle.equals(dataStock.getTitle())) {
                     if(fragmentChart != null) {
@@ -161,15 +185,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initData() {
-        // Indexing Old Data
-        String todayDate = TimeManip.getTodayDate();
-        List<DataUpdate> dataUpdateList = new Select()
-                .from(DataUpdate.class)
-                .queryList();
-        for(DataUpdate dataUpdate : dataUpdateList) {
-            if(!dataUpdate.getLastUpdate().equals(todayDate)) {
-                apiCallManager.addUnUpdatedData(dataUpdate.getTitle());
-            }
+        List<DataUpdate> deprecatedData = DataUpdate.getUnUpdatedData();
+        for(DataUpdate dataUpdate : deprecatedData) {
+            apiCallManager.addUnUpdatedData(dataUpdate.getTitle());
         }
     }
 
@@ -202,7 +220,15 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onAction(Object object) {
             String dataTitle = (String) object;
-            apiCallManager.addNewData(dataTitle);
+            DataStock dataStock = new Select()
+                    .from(DataStock.class)
+                    .where(DataStock_Table.title.eq(dataTitle))
+                    .querySingle();
+            if(dataStock == null) {
+                apiCallManager.addNewData(dataTitle);
+            } else {
+                Toast.makeText(getApplicationContext(), "Stock Already Exist", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
@@ -214,7 +240,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
-        getSupportFragmentManager().popBackStack(ID_FRAG_CHART, POP_BACK_STACK_INCLUSIVE);
         try {
             this.unregisterReceiver(networkReceiver);
         } catch (IllegalArgumentException e) {

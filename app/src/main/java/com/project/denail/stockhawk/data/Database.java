@@ -8,4 +8,11 @@ package com.project.denail.stockhawk.data;
 public class Database {
     public static final String NAME = "Database";
     public static final int VERSION = 1;
+
+    public static void deleteData(String dataTitle) {
+        DataStock.deleteData(dataTitle);
+        DataStockMinim.deleteData(dataTitle);
+        DataUpdate.deleteData(dataTitle);
+    }
+
 }
