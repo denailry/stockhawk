@@ -220,6 +220,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onAction(Object object) {
             String dataTitle = (String) object;
+            dataTitle = dataTitle.toUpperCase();
             DataStock dataStock = new Select()
                     .from(DataStock.class)
                     .where(DataStock_Table.title.eq(dataTitle))

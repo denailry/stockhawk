@@ -15,8 +15,8 @@ import java.util.Locale;
 
 @Table(database = Database.class)
 public class DataStockMinim extends BaseModel {
-    @PrimaryKey @Column private long id;
-    @Column private String title;
+    @PrimaryKey @Column private String title;
+    @Column private long id;
     @Column private String value;
     @Column private String diff;
     @Column private boolean isDown;

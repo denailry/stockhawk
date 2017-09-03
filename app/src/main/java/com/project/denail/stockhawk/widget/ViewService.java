@@ -45,6 +45,7 @@ public class ViewService extends RemoteViewsService {
                 itemList = new Select()
                         .from(DataStockMinim.class)
                         .queryList();
+                Collections.reverse(itemList);
             } catch (IllegalStateException e) {
                 FlowManager.init(new FlowConfig.Builder(context).build());
                 itemList = new Select()

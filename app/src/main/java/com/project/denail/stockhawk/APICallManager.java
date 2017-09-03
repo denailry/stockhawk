@@ -109,7 +109,6 @@ public class APICallManager implements Runnable {
     }
 
     private void chooseData() {
-        Log.d("TEST-CHOOSE", "HALO");
         if(newData.size() != 0) {
             this.isNewData = true;
             this.currentIndex = newData.size() - 1;
@@ -217,18 +216,14 @@ public class APICallManager implements Runnable {
 
         @Override
         public void onTimeout() {
-            Log.d("TEST-API", "HALO 1");
             onFinish(updatedData, TimeManip.getTodayDate());
         }
 
         @Override
-        public void onReceiveNew(DataStock dataStock, String date) {
-            Log.d("TEST-API", "HALO 2");
-        }
+        public void onReceiveNew(DataStock dataStock, String date) {}
 
         @Override
         public void onReceiveUpdate(DataStock dataStock, String date) {
-            Log.d("TEST-API", "HALO 3");
             updatedData.add(dataStock);
             onPostListen();
         }
